@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
-import { UserButton } from "@clerk/clerk-react";
+import { UserButton, useUser } from "@clerk/clerk-react";
 import { Link } from "react-router-dom";
 import { Lightbulb, Save, Code, Sparkles, AlertCircle, Copy } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -59,10 +59,12 @@ const Dashboard = () => {
   const [hashtags, setHashtags] = useState<string>('');
   const [customPrompt, setCustomPrompt] = useState<string>('');
   const [ideaCount, setIdeaCount] = useState<number[]>([1]);
+  const [generatedIdeas, setGeneratedIdeas] = useState<GeneratedIdea[]>([]);
   const [currentIdea, setCurrentIdea] = useState<GeneratedIdea | null>(null);
   const [showCodingPrompt, setShowCodingPrompt] = useState(false);
   const subscription = useUserSubscription();
   const queryClient = useQueryClient();
+  const { user } = useUser();
 
   const copyToClipboard = async (text: string) => {
     try {
@@ -83,11 +85,12 @@ const Dashboard = () => {
         throw new Error(`Free users can only generate up to ${subscription.maxIdeasPerGeneration} ideas at once. Please upgrade to Pro for more.`);
       }
       const hashtagArray = hashtags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
-      return await generateIdea(selectedNiche, hashtagArray, customPrompt);
+      return await generateIdea(selectedNiche, hashtagArray, customPrompt, requestedCount);
     },
-    onSuccess: idea => {
-      setCurrentIdea(idea);
-      toast.success('New idea generated successfully!');
+    onSuccess: ideas => {
+      setGeneratedIdeas(ideas);
+      setCurrentIdea(ideas[0]); // Set first idea as current
+      toast.success(`${ideas.length} idea${ideas.length > 1 ? 's' : ''} generated successfully!`);
     },
     onError: error => {
       toast.error(error.message || 'Failed to generate idea');
@@ -118,7 +121,8 @@ const Dashboard = () => {
   const saveIdeaMutation = useMutation({
     mutationFn: async () => {
       if (!currentIdea) throw new Error('No idea to save');
-      return await saveIdea(currentIdea);
+      if (!user) throw new Error('User not authenticated');
+      return await saveIdea(currentIdea, user.id);
     },
     onSuccess: () => {
       toast.success('Idea saved successfully!');
@@ -129,7 +133,7 @@ const Dashboard = () => {
     }
   });
 
-  return <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+  return <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 select-none" style={{userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none'}} onContextMenu={(e) => e.preventDefault()}>
       {/* Navigation */}
       <nav className="flex justify-between items-center p-6 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-blue-100 dark:border-gray-700">
         <div className="flex items-center space-x-2">
@@ -236,7 +240,7 @@ const Dashboard = () => {
           </Button>
         </div>
 
-        {/* Generated Idea */}
+        {/* Generated Ideas */}
         {generateIdeaMutation.isPending && <Card className="animate-fade-in dark:bg-gray-800 dark:border-gray-700">
             <CardContent className="p-8">
               <div className="space-y-4">
@@ -260,70 +264,91 @@ const Dashboard = () => {
             </AlertDescription>
           </Alert>}
 
-        {currentIdea && <Card className="animate-scale-in dark:bg-gray-800 dark:border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-2xl text-blue-900 dark:text-white">{currentIdea.businessName}</CardTitle>
-              <Badge variant="secondary" className="w-fit">{currentIdea.niche}</Badge>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">{currentIdea.description}</p>
-              
-              {currentIdea.hashtags.length > 0 && <div className="mb-6">
-                  <h4 className="font-medium mb-2 dark:text-white">Hashtags:</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {currentIdea.hashtags.map((tag, index) => <Badge key={index} variant="outline" className="text-blue-600 dark:text-blue-400">
-                        {tag.startsWith('#') ? tag : `#${tag}`}
-                      </Badge>)}
-                  </div>
-                </div>}
-
-              <div className="flex space-x-4">
-                <Dialog open={showCodingPrompt} onOpenChange={setShowCodingPrompt}>
-                  <DialogTrigger asChild>
-                    <Button onClick={() => {
-                  if (!currentIdea.codingPrompt) {
-                    generatePromptMutation.mutate();
-                  } else {
-                    setShowCodingPrompt(true);
-                  }
-                }} disabled={generatePromptMutation.isPending || !subscription.canGenerateCodingPrompts} className="bg-purple-600 hover:bg-purple-700">
-                      <Code className="h-4 w-4 mr-2" />
-                      {generatePromptMutation.isPending ? 'Generating...' : 'Get Coding Prompt'}
-                      {!subscription.canGenerateCodingPrompts && <span className="ml-2 text-xs">(Pro only)</span>}
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto dark:bg-gray-800">
-                    <DialogHeader>
-                      <div className="flex justify-between items-center">
-                        <DialogTitle className="dark:text-white">Coding Prompt for {currentIdea.businessName}</DialogTitle>
-                        {currentIdea.codingPrompt && (
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            onClick={() => copyToClipboard(currentIdea.codingPrompt || '')}
-                            className="ml-4"
-                          >
-                            <Copy className="h-4 w-4 mr-2" />
-                            Copy
-                          </Button>
-                        )}
-                      </div>
-                    </DialogHeader>
-                    {currentIdea.codingPrompt && <div className="prose max-w-none">
-                        <div className="whitespace-pre-wrap text-sm bg-gray-50 dark:bg-gray-700 p-4 rounded-lg dark:text-white">
-                          {currentIdea.codingPrompt}
-                        </div>
-                      </div>}
-                  </DialogContent>
-                </Dialog>
-
-                <Button onClick={() => saveIdeaMutation.mutate()} disabled={saveIdeaMutation.isPending} variant="outline" className="border-green-200 text-green-700 hover:bg-green-50 dark:border-green-700 dark:text-green-400 dark:hover:bg-green-900/20">
-                  <Save className="h-4 w-4 mr-2" />
-                  {saveIdeaMutation.isPending ? 'Saving...' : 'Save Idea'}
-                </Button>
+        {generatedIdeas.length > 0 && (
+          <div className="space-y-6">
+            {/* Idea Navigation */}
+            {generatedIdeas.length > 1 && (
+              <div className="flex justify-center space-x-2 mb-6">
+                {generatedIdeas.map((_, index) => (
+                  <Button
+                    key={index}
+                    variant={currentIdea === generatedIdeas[index] ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCurrentIdea(generatedIdeas[index])}
+                  >
+                    Idea {index + 1}
+                  </Button>
+                ))}
               </div>
-            </CardContent>
-          </Card>}
+            )}
+
+            {/* Current Idea Display */}
+            {currentIdea && <Card className="animate-scale-in dark:bg-gray-800 dark:border-gray-700">
+                <CardHeader>
+                  <CardTitle className="text-2xl text-blue-900 dark:text-white">{currentIdea.businessName}</CardTitle>
+                  <Badge variant="secondary" className="w-fit">{currentIdea.niche}</Badge>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">{currentIdea.description}</p>
+                  
+                  {currentIdea.hashtags.length > 0 && <div className="mb-6">
+                      <h4 className="font-medium mb-2 dark:text-white">Hashtags:</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {currentIdea.hashtags.map((tag, index) => <Badge key={index} variant="outline" className="text-blue-600 dark:text-blue-400">
+                            {tag.startsWith('#') ? tag : `#${tag}`}
+                          </Badge>)}
+                      </div>
+                    </div>}
+
+                  <div className="flex space-x-4">
+                    <Dialog open={showCodingPrompt} onOpenChange={setShowCodingPrompt}>
+                      <DialogTrigger asChild>
+                        <Button onClick={() => {
+                      if (!currentIdea.codingPrompt) {
+                        generatePromptMutation.mutate();
+                      } else {
+                        setShowCodingPrompt(true);
+                      }
+                    }} disabled={generatePromptMutation.isPending || !subscription.canGenerateCodingPrompts} className="bg-purple-600 hover:bg-purple-700">
+                          <Code className="h-4 w-4 mr-2" />
+                          {generatePromptMutation.isPending ? 'Generating...' : 'Get Coding Prompt'}
+                          {!subscription.canGenerateCodingPrompts && <span className="ml-2 text-xs">(Pro only)</span>}
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto dark:bg-gray-800">
+                        <DialogHeader>
+                          <div className="flex justify-between items-center">
+                            <DialogTitle className="dark:text-white">Coding Prompt for {currentIdea.businessName}</DialogTitle>
+                            {currentIdea.codingPrompt && (
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                onClick={() => copyToClipboard(currentIdea.codingPrompt || '')}
+                                className="ml-4"
+                              >
+                                <Copy className="h-4 w-4 mr-2" />
+                                Copy
+                              </Button>
+                            )}
+                          </div>
+                        </DialogHeader>
+                        {currentIdea.codingPrompt && <div className="prose max-w-none">
+                            <div className="whitespace-pre-wrap text-sm bg-gray-50 dark:bg-gray-700 p-4 rounded-lg dark:text-white">
+                              {currentIdea.codingPrompt}
+                            </div>
+                          </div>}
+                      </DialogContent>
+                    </Dialog>
+
+                    <Button onClick={() => saveIdeaMutation.mutate()} disabled={saveIdeaMutation.isPending} variant="outline" className="border-green-200 text-green-700 hover:bg-green-50 dark:border-green-700 dark:text-green-400 dark:hover:bg-green-900/20">
+                      <Save className="h-4 w-4 mr-2" />
+                      {saveIdeaMutation.isPending ? 'Saving...' : 'Save Idea'}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>}
+          </div>
+        )}
       </div>
     </div>;
 };
