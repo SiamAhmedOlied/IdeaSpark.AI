@@ -17,7 +17,6 @@ import { generateIdea, generateCodingPrompt } from "@/lib/gemini";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useUserSubscription } from "@/hooks/useUserSubscription";
 import { saveIdea } from "@/lib/supabase";
-
 const niches = [{
   id: 'IT',
   name: 'IT',
@@ -63,7 +62,6 @@ const Dashboard = () => {
   const [showCodingPrompt, setShowCodingPrompt] = useState(false);
   const subscription = useUserSubscription();
   const queryClient = useQueryClient();
-
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -72,7 +70,6 @@ const Dashboard = () => {
       toast.error('Failed to copy to clipboard');
     }
   };
-
   const generateIdeaMutation = useMutation({
     mutationFn: async () => {
       if (!selectedNiche) {
@@ -93,7 +90,6 @@ const Dashboard = () => {
       toast.error(error.message || 'Failed to generate idea');
     }
   });
-
   const generatePromptMutation = useMutation({
     mutationFn: async () => {
       if (!subscription.canGenerateCodingPrompts) {
@@ -114,7 +110,6 @@ const Dashboard = () => {
       toast.error(error.message || 'Failed to generate coding prompt');
     }
   });
-
   const saveIdeaMutation = useMutation({
     mutationFn: async () => {
       if (!currentIdea) throw new Error('No idea to save');
@@ -122,13 +117,14 @@ const Dashboard = () => {
     },
     onSuccess: () => {
       toast.success('Idea saved successfully!');
-      queryClient.invalidateQueries({ queryKey: ['saved-ideas'] });
+      queryClient.invalidateQueries({
+        queryKey: ['saved-ideas']
+      });
     },
     onError: error => {
       toast.error(error.message || 'Failed to save idea');
     }
   });
-
   return <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       {/* Navigation */}
       <nav className="flex justify-between items-center p-6 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-blue-100 dark:border-gray-700">
@@ -149,9 +145,7 @@ const Dashboard = () => {
           <Link to="/pricing" className="text-gray-600 dark:text-gray-300 hover:text-blue-600 transition-colors">
             Pricing
           </Link>
-          <Badge variant={subscription.plan === 'pro' ? 'default' : 'secondary'}>
-            {subscription.plan === 'pro' ? 'Pro' : 'Free'}
-          </Badge>
+          
           <ThemeToggle />
           <UserButton afterSignOutUrl="/" />
         </div>
@@ -296,17 +290,10 @@ const Dashboard = () => {
                     <DialogHeader>
                       <div className="flex justify-between items-center">
                         <DialogTitle className="dark:text-white">Coding Prompt for {currentIdea.businessName}</DialogTitle>
-                        {currentIdea.codingPrompt && (
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            onClick={() => copyToClipboard(currentIdea.codingPrompt || '')}
-                            className="ml-4"
-                          >
+                        {currentIdea.codingPrompt && <Button size="sm" variant="outline" onClick={() => copyToClipboard(currentIdea.codingPrompt || '')} className="ml-4">
                             <Copy className="h-4 w-4 mr-2" />
                             Copy
-                          </Button>
-                        )}
+                          </Button>}
                       </div>
                     </DialogHeader>
                     {currentIdea.codingPrompt && <div className="prose max-w-none">
