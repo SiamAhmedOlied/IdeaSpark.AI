@@ -4,17 +4,22 @@ import { Card } from "@/components/ui/card";
 import { SignedIn, SignedOut, UserButton } from "@clerk/clerk-react";
 import { Link } from "react-router-dom";
 import { Lightbulb, Zap, Code, Users } from "lucide-react";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const Index = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       {/* Navigation */}
-      <nav className="flex justify-between items-center p-6 bg-white/80 backdrop-blur-sm border-b border-blue-100">
+      <nav className="flex justify-between items-center p-6 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-blue-100 dark:border-gray-700">
         <div className="flex items-center space-x-2">
           <Lightbulb className="h-8 w-8 text-blue-600" />
-          <h1 className="text-2xl font-bold text-blue-900">IdeaSpark</h1>
+          <h1 className="text-2xl font-bold text-blue-900 dark:text-white">IdeaSpark</h1>
         </div>
         <div className="flex items-center space-x-4">
+          <Link to="/pricing" className="text-gray-600 dark:text-gray-300 hover:text-blue-600 transition-colors">
+            Pricing
+          </Link>
+          <ThemeToggle />
           <SignedOut>
             <Link to="/login">
               <Button variant="outline" className="border-blue-200 text-blue-700 hover:bg-blue-50">
@@ -36,12 +41,12 @@ const Index = () => {
       {/* Hero Section */}
       <div className="container mx-auto px-6 py-20">
         <div className="text-center mb-16 animate-fade-in">
-          <h2 className="text-5xl font-bold text-blue-900 mb-6 leading-tight">
+          <h2 className="text-5xl font-bold text-blue-900 dark:text-white mb-6 leading-tight">
             Generate Unique SaaS Ideas
             <br />
             <span className="text-blue-600">Powered by AI</span>
           </h2>
-          <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
+          <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-3xl mx-auto">
             Discover innovative business opportunities with AI-generated SaaS ideas, 
             complete with detailed coding prompts and implementation guides.
           </p>
@@ -63,25 +68,25 @@ const Index = () => {
 
         {/* Features Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mb-20">
-          <Card className="p-6 text-center hover:shadow-lg transition-shadow animate-scale-in">
+          <Card className="p-6 text-center hover:shadow-lg transition-shadow animate-scale-in dark:bg-gray-800 dark:border-gray-700">
             <Lightbulb className="h-12 w-12 text-blue-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold mb-2">AI-Powered Ideas</h3>
-            <p className="text-gray-600">Generate unique SaaS concepts tailored to specific niches and markets.</p>
+            <h3 className="text-xl font-semibold mb-2 dark:text-white">AI-Powered Ideas</h3>
+            <p className="text-gray-600 dark:text-gray-300">Generate unique SaaS concepts tailored to specific niches and markets.</p>
           </Card>
-          <Card className="p-6 text-center hover:shadow-lg transition-shadow animate-scale-in">
+          <Card className="p-6 text-center hover:shadow-lg transition-shadow animate-scale-in dark:bg-gray-800 dark:border-gray-700">
             <Code className="h-12 w-12 text-blue-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold mb-2">Coding Prompts</h3>
-            <p className="text-gray-600">Get detailed implementation guides with tech stacks and code snippets.</p>
+            <h3 className="text-xl font-semibold mb-2 dark:text-white">Coding Prompts</h3>
+            <p className="text-gray-600 dark:text-gray-300">Get detailed implementation guides with tech stacks and code snippets.</p>
           </Card>
-          <Card className="p-6 text-center hover:shadow-lg transition-shadow animate-scale-in">
+          <Card className="p-6 text-center hover:shadow-lg transition-shadow animate-scale-in dark:bg-gray-800 dark:border-gray-700">
             <Zap className="h-12 w-12 text-blue-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold mb-2">Niche Targeting</h3>
-            <p className="text-gray-600">Focus on specific industries like FinTech, Healthcare, or Productivity.</p>
+            <h3 className="text-xl font-semibold mb-2 dark:text-white">Niche Targeting</h3>
+            <p className="text-gray-600 dark:text-gray-300">Focus on specific industries like FinTech, Healthcare, or Productivity.</p>
           </Card>
-          <Card className="p-6 text-center hover:shadow-lg transition-shadow animate-scale-in">
+          <Card className="p-6 text-center hover:shadow-lg transition-shadow animate-scale-in dark:bg-gray-800 dark:border-gray-700">
             <Users className="h-12 w-12 text-blue-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold mb-2">Save & Organize</h3>
-            <p className="text-gray-600">Keep track of your favorite ideas and build your innovation pipeline.</p>
+            <h3 className="text-xl font-semibold mb-2 dark:text-white">Save & Organize</h3>
+            <p className="text-gray-600 dark:text-gray-300">Keep track of your favorite ideas and build your innovation pipeline.</p>
           </Card>
         </div>
 

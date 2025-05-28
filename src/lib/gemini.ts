@@ -9,10 +9,11 @@ interface GeneratedIdea {
   hashtags: string[];
 }
 
-export async function generateIdea(niche: string, hashtags: string[]): Promise<GeneratedIdea> {
+export async function generateIdea(niche: string, hashtags: string[], customPrompt?: string): Promise<GeneratedIdea> {
   const hashtagText = hashtags.length > 0 ? ` incorporating these hashtags: ${hashtags.join(', ')}` : '';
+  const customText = customPrompt ? ` with these specific requirements: ${customPrompt}` : '';
   
-  const prompt = `Generate a unique SaaS business idea for the ${niche} niche${hashtagText}. 
+  const prompt = `Generate a unique SaaS business idea for the ${niche} niche${hashtagText}${customText}. 
   
   Please respond with a JSON object containing:
   - businessName: A unique, catchy name for the business
