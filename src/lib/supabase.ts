@@ -1,5 +1,6 @@
 
 import { createClient } from '@supabase/supabase-js';
+import { useUser } from '@clerk/clerk-react';
 
 const supabaseUrl = 'https://xfwjpgidmxzhgmqpxihv.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhmd2pwZ2lkbXh6aGdtcXB4aWh2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg0NTAzNzEsImV4cCI6MjA2NDAyNjM3MX0.jMki_HtINto7VnsgtXgmQ8GTdKxyVd1exC7oCFJ7Tzo';
@@ -23,11 +24,14 @@ export const saveIdea = async (idea: {
   niche: string;
   hashtags: string[];
   codingPrompt?: string;
-}, userId: string) => {
+}) => {
+  const { user } = useUser();
+  if (!user) throw new Error('User not authenticated');
+
   const { data, error } = await supabase
     .from('ideas')
     .insert({
-      user_id: userId,
+      user_id: user.id,
       business_name: idea.businessName,
       niche: idea.niche,
       description: idea.description,

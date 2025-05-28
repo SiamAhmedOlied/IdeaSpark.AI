@@ -9,20 +9,19 @@ interface GeneratedIdea {
   hashtags: string[];
 }
 
-export async function generateIdea(niche: string, hashtags: string[], customPrompt?: string, count: number = 1): Promise<GeneratedIdea[]> {
+export async function generateIdea(niche: string, hashtags: string[], customPrompt?: string): Promise<GeneratedIdea> {
   const hashtagText = hashtags.length > 0 ? ` incorporating these hashtags: ${hashtags.join(', ')}` : '';
   const customText = customPrompt ? ` with these specific requirements: ${customPrompt}` : '';
   
-  const prompt = `Generate ${count} unique SaaS business idea${count > 1 ? 's' : ''} for the ${niche} niche${hashtagText}${customText}. 
+  const prompt = `Generate a unique SaaS business idea for the ${niche} niche${hashtagText}${customText}. 
   
-  Please respond with a JSON ${count > 1 ? 'array' : 'object'} containing:
-  ${count > 1 ? '- Each idea should be an object with:' : ''}
+  Please respond with a JSON object containing:
   - businessName: A unique, catchy name for the business
   - description: A detailed description (100-150 words) explaining the idea, target audience, and value proposition
   - niche: The niche category
   - hashtags: An array of relevant hashtags (include the provided ones if any, plus additional relevant ones)
   
-  Make sure ${count > 1 ? 'each idea is' : 'the idea is'} innovative, practical, and addresses real market needs in the ${niche} space.`;
+  Make sure the idea is innovative, practical, and addresses real market needs in the ${niche} space.`;
 
   try {
     const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
@@ -52,26 +51,14 @@ export async function generateIdea(niche: string, hashtags: string[], customProm
       throw new Error('Could not parse response from AI');
     }
 
-    const parsedResponse = JSON.parse(jsonMatch[0]);
+    const parsedIdea = JSON.parse(jsonMatch[0]);
     
-    // Handle both single idea and multiple ideas
-    if (count === 1) {
-      return [{
-        businessName: parsedResponse.businessName,
-        description: parsedResponse.description,
-        niche: niche,
-        hashtags: parsedResponse.hashtags || hashtags
-      }];
-    } else {
-      // If it's an array, return as is, otherwise wrap single object in array
-      const ideas = Array.isArray(parsedResponse) ? parsedResponse : [parsedResponse];
-      return ideas.map(idea => ({
-        businessName: idea.businessName,
-        description: idea.description,
-        niche: niche,
-        hashtags: idea.hashtags || hashtags
-      }));
-    }
+    return {
+      businessName: parsedIdea.businessName,
+      description: parsedIdea.description,
+      niche: niche,
+      hashtags: parsedIdea.hashtags || hashtags
+    };
   } catch (error) {
     console.error('Error generating idea:', error);
     throw new Error('Failed to generate idea. Please try again.');
