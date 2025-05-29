@@ -8,15 +8,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
-import { UserButton } from "@clerk/clerk-react";
-import { Link } from "react-router-dom";
+import { UserButton, useUser } from "@clerk/clerk-react";
+import { Link, useNavigate } from "react-router-dom";
 import { Lightbulb, Save, Code, Sparkles, AlertCircle, Copy } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { generateIdea, generateCodingPrompt } from "@/lib/gemini";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useUserSubscription } from "@/hooks/useUserSubscription";
-import { saveIdea } from "@/lib/supabase";
+import { saveIdea, updateUserGenerations } from "@/lib/supabase";
+
 const niches = [{
   id: 'IT',
   name: 'IT',
@@ -54,6 +55,8 @@ interface GeneratedIdea {
   codingPrompt?: string;
 }
 const Dashboard = () => {
+  const { user } = useUser();
+  const navigate = useNavigate();
   const [selectedNiche, setSelectedNiche] = useState<string>('');
   const [hashtags, setHashtags] = useState<string>('');
   const [customPrompt, setCustomPrompt] = useState<string>('');
@@ -62,6 +65,7 @@ const Dashboard = () => {
   const [showCodingPrompt, setShowCodingPrompt] = useState(false);
   const subscription = useUserSubscription();
   const queryClient = useQueryClient();
+
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -70,26 +74,41 @@ const Dashboard = () => {
       toast.error('Failed to copy to clipboard');
     }
   };
+
   const generateIdeaMutation = useMutation({
     mutationFn: async () => {
       if (!selectedNiche) {
         throw new Error('Please select a niche first');
+      }
+      if (!subscription.canGenerate) {
+        throw new Error('You have reached your daily generation limit. Please upgrade to Pro for unlimited generations.');
       }
       const requestedCount = ideaCount[0];
       if (requestedCount > subscription.maxIdeasPerGeneration) {
         throw new Error(`Free users can only generate up to ${subscription.maxIdeasPerGeneration} ideas at once. Please upgrade to Pro for more.`);
       }
       const hashtagArray = hashtags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+      
+      // Update generation count
+      if (user?.id) {
+        await updateUserGenerations(user.id, subscription.generationsUsed + 1);
+      }
+      
       return await generateIdea(selectedNiche, hashtagArray, customPrompt);
     },
     onSuccess: idea => {
       setCurrentIdea(idea);
       toast.success('New idea generated successfully!');
+      // Invalidate user generations query to update the UI
+      queryClient.invalidateQueries({
+        queryKey: ['user-generations']
+      });
     },
     onError: error => {
       toast.error(error.message || 'Failed to generate idea');
     }
   });
+
   const generatePromptMutation = useMutation({
     mutationFn: async () => {
       if (!subscription.canGenerateCodingPrompts) {
@@ -110,10 +129,12 @@ const Dashboard = () => {
       toast.error(error.message || 'Failed to generate coding prompt');
     }
   });
+
   const saveIdeaMutation = useMutation({
     mutationFn: async () => {
       if (!currentIdea) throw new Error('No idea to save');
-      return await saveIdea(currentIdea);
+      if (!user?.id) throw new Error('User not authenticated');
+      return await saveIdea(currentIdea, user.id);
     },
     onSuccess: () => {
       toast.success('Idea saved successfully!');
@@ -125,15 +146,15 @@ const Dashboard = () => {
       toast.error(error.message || 'Failed to save idea');
     }
   });
-  return <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+
+  return <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900" style={{ userSelect: 'none' }}>
       {/* Navigation */}
       <nav className="flex justify-between items-center p-6 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-blue-100 dark:border-gray-700">
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 cursor-pointer" onClick={() => navigate('/')}>
           <Lightbulb className="h-8 w-8 text-blue-600" />
           <h1 className="text-2xl font-bold text-blue-900 dark:text-white">IdeaSpark</h1>
         </div>
         <div className="flex items-center space-x-6">
-          
           <Link to="/dashboard" className="text-blue-600 font-medium">
             Generate Ideas
           </Link>
@@ -143,7 +164,9 @@ const Dashboard = () => {
           <Link to="/pricing" className="text-gray-600 dark:text-gray-300 hover:text-blue-600 transition-colors">
             Pricing
           </Link>
-          
+          <Badge variant={subscription.plan === 'pro' ? 'default' : 'secondary'}>
+            {subscription.plan === 'pro' ? 'Pro' : 'Free'}
+          </Badge>
           <ThemeToggle />
           <UserButton afterSignOutUrl="/" />
         </div>
@@ -154,7 +177,24 @@ const Dashboard = () => {
         <div className="text-center mb-12">
           <h2 className="text-4xl font-bold text-blue-900 dark:text-white mb-4">Generate Your Next SaaS Idea</h2>
           <p className="text-xl text-gray-600 dark:text-gray-300">Select a niche, add hashtags, and let AI create unique business opportunities for you.</p>
+          {subscription.plan === 'free' && (
+            <div className="mt-4">
+              <Badge variant="outline" className="text-orange-600 border-orange-300">
+                Free: {subscription.generationsUsed}/{subscription.maxGenerationsPerDay} daily generations used
+              </Badge>
+            </div>
+          )}
         </div>
+
+        {/* Show limitation alert for free users */}
+        {subscription.plan === 'free' && !subscription.canGenerate && (
+          <Alert className="mb-8 border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-900/20">
+            <AlertCircle className="h-4 w-4 text-orange-600" />
+            <AlertDescription className="text-orange-700 dark:text-orange-400">
+              You have reached your daily generation limit. <Link to="/pricing" className="font-medium underline">Upgrade to Pro</Link> for unlimited generations.
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Niche Selection */}
         <Card className="mb-8 animate-fade-in dark:bg-gray-800 dark:border-gray-700">
@@ -181,7 +221,6 @@ const Dashboard = () => {
           <CardContent>
             <div className="relative">
               <Textarea placeholder="Add specific requirements or details for your SaaS idea (e.g., 'focus on small businesses', 'mobile-first approach', 'AI-powered features')" value={customPrompt} onChange={e => setCustomPrompt(e.target.value)} className="min-h-[100px] dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-              
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
               Provide additional context to generate more targeted ideas
@@ -223,7 +262,7 @@ const Dashboard = () => {
 
         {/* Generate Button */}
         <div className="text-center mb-8">
-          <Button size="lg" onClick={() => generateIdeaMutation.mutate()} disabled={!selectedNiche || generateIdeaMutation.isPending} className="bg-blue-600 hover:bg-blue-700 text-lg px-8 py-4">
+          <Button size="lg" onClick={() => generateIdeaMutation.mutate()} disabled={!selectedNiche || generateIdeaMutation.isPending || !subscription.canGenerate} className="bg-blue-600 hover:bg-blue-700 text-lg px-8 py-4">
             {generateIdeaMutation.isPending ? 'Generating...' : `Generate ${ideaCount[0]} Idea${ideaCount[0] > 1 ? 's' : ''}`}
           </Button>
         </div>
