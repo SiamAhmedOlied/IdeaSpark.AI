@@ -133,9 +133,7 @@ const Dashboard = () => {
           <h1 className="text-2xl font-bold text-blue-900 dark:text-white">IdeaSpark</h1>
         </div>
         <div className="flex items-center space-x-6">
-          <Link to="/" className="text-gray-600 dark:text-gray-300 hover:text-blue-600 transition-colors">
-            Home
-          </Link>
+          
           <Link to="/dashboard" className="text-blue-600 font-medium">
             Generate Ideas
           </Link>
